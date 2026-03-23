@@ -1,0 +1,5 @@
+{
+  "name": "Virtual Try-On",
+  "description": "A web application that detects real-time human body dimensions using the webcam and MediaPipe, with video calling via Agora.",
+  "requestFramePermissions": ["camera", "microphone"]
+}
