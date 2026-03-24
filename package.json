@@ -4,8 +4,8 @@
   "scripts": {
     "postinstall": "node -e \"const fs = require('fs'); const path = 'node_modules/@mediapipe/tasks-vision/package.json'; if(fs.existsSync(path)){const pkg = JSON.parse(fs.readFileSync(path, 'utf8')); pkg.exports = { '.': { types: pkg.exports.types || pkg.exports['.'].types, import: pkg.exports.import || pkg.exports['.'].import, require: pkg.exports.require || pkg.exports['.'].require, default: pkg.exports.default || pkg.exports['.'].default }, './vision_wasm_internal.js': './vision_wasm_internal.js', './vision_wasm_internal.wasm': './vision_wasm_internal.wasm', './vision_wasm_nosimd_internal.js': './vision_wasm_nosimd_internal.js', './vision_wasm_nosimd_internal.wasm': './vision_wasm_nosimd_internal.wasm', './vision_wasm_module_internal.js': './vision_wasm_module_internal.js', './vision_wasm_module_internal.wasm': './vision_wasm_module_internal.wasm' }; fs.writeFileSync(path, JSON.stringify(pkg, null, 2));}\"",
     "ng": "ng",
-    "start": "ng serve",
-    "dev": "ng serve",
+    "start": "ng serve --host 0.0.0.0 --port 3000",
+    "dev": "ng serve --host 0.0.0.0 --port 3000",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",

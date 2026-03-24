@@ -65,6 +65,38 @@
             <div class="relative rounded-xl overflow-hidden bg-black shadow-2xl w-full aspect-video">
               <video #localVideoElement autoplay playsinline class="hidden"></video>
               <canvas #canvasElement class="w-full h-full object-cover transform scale-x-[-1]"></canvas>
+              
+              <!-- Position Navigation Box -->
+              @if (role() === 'buyer' && positionFeedback()) {
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 w-full px-4">
+                  <div class="px-6 py-3 rounded-xl border-2 shadow-2xl backdrop-blur-md font-bold text-lg text-center transition-colors duration-300 w-full max-w-md"
+                       [ngClass]="{
+                         'bg-emerald-500/20 border-emerald-500 text-emerald-400': positionStatus() === 'good',
+                         'bg-yellow-500/20 border-yellow-500 text-yellow-400': positionStatus() === 'warning',
+                         'bg-red-500/20 border-red-500 text-red-400': positionStatus() === 'error'
+                       }">
+                    {{ positionFeedback() }}
+                  </div>
+                  
+                  <div class="flex gap-2 w-full max-w-md">
+                    <div class="flex-1 px-4 py-2 rounded-lg border shadow-xl backdrop-blur-md font-medium text-sm text-center transition-colors duration-300"
+                         [ngClass]="{
+                           'bg-emerald-500/20 border-emerald-500/50 text-emerald-400': cameraAngleStatus() === 'good',
+                           'bg-yellow-500/20 border-yellow-500/50 text-yellow-400': cameraAngleStatus() === 'warning',
+                           'bg-red-500/20 border-red-500/50 text-red-400': cameraAngleStatus() === 'error'
+                         }">
+                      {{ cameraAngleFeedback() }}
+                    </div>
+                    
+                    @if (distanceFromCamera()) {
+                      <div class="px-4 py-2 rounded-lg border border-white/20 bg-black/60 shadow-xl backdrop-blur-md font-mono text-sm text-white flex items-center justify-center whitespace-nowrap">
+                        <mat-icon class="text-[16px] w-[16px] h-[16px] mr-1 text-blue-400">straighten</mat-icon>
+                        {{ distanceFromCamera() | number:'1.0-0' }} cm
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
           </div>
 
@@ -128,6 +160,38 @@
               <div class="bg-black/50 rounded-lg p-3 border border-white/5">
                 <div class="text-xs text-gray-500 mb-1">Legs</div>
                 <div class="text-lg font-mono text-emerald-400">{{ measurements()!.legs | number:'1.1-1' }} cm</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 bg-[#141414] border border-white/10 rounded-2xl p-6">
+            <h3 class="text-lg font-medium text-white mb-4">Adjust Clothing Fit</h3>
+            <div class="flex flex-col md:flex-row gap-8 items-center justify-center">
+              <div class="grid grid-cols-3 gap-2 w-fit">
+                <div></div>
+                <button (click)="adjustCloth('up')" class="p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors">
+                  <mat-icon class="text-white">keyboard_arrow_up</mat-icon>
+                </button>
+                <div></div>
+                <button (click)="adjustCloth('left')" class="p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors">
+                  <mat-icon class="text-white">keyboard_arrow_left</mat-icon>
+                </button>
+                <button (click)="adjustCloth('down')" class="p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors">
+                  <mat-icon class="text-white">keyboard_arrow_down</mat-icon>
+                </button>
+                <button (click)="adjustCloth('right')" class="p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors">
+                  <mat-icon class="text-white">keyboard_arrow_right</mat-icon>
+                </button>
+              </div>
+              <div class="flex gap-4">
+                <button (click)="adjustCloth('in')" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-2 transition-colors">
+                  <mat-icon class="text-white text-sm">remove</mat-icon>
+                  <span class="text-sm font-medium text-white">Scale Down</span>
+                </button>
+                <button (click)="adjustCloth('out')" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-2 transition-colors">
+                  <mat-icon class="text-white text-sm">add</mat-icon>
+                  <span class="text-sm font-medium text-white">Scale Up</span>
+                </button>
               </div>
             </div>
           </div>

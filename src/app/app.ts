@@ -7,70 +7,102 @@ import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemote
 const AGORA_APP_ID = 'ccd55ca11eb044efa9c85caed54542e5';
 const CHANNEL_NAME = 'virtual-tryon-demo';
 
-const drawItem = (ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLVideoElement, type: string, landmarks: any, w: number, h: number) => {
+const drawItem = (ctx: CanvasRenderingContext2D, img: HTMLImageElement, type: string, landmarks: any, w: number, h: number, offsetX: number, offsetY: number, scale: number) => {
   const getPx = (lm: any) => ({ x: lm.x * w, y: lm.y * h });
   
   if (type === 'shirt') {
-    const ls = getPx(landmarks[11]);
-    const rs = getPx(landmarks[12]);
-    const lh = getPx(landmarks[23]);
-    const rh = getPx(landmarks[24]);
+    const l_shoulder = getPx(landmarks[11]);
+    const r_shoulder = getPx(landmarks[12]);
+    const l_hip = getPx(landmarks[23]);
+    const r_hip = getPx(landmarks[24]);
+    const l_elbow = getPx(landmarks[13]);
+    const r_elbow = getPx(landmarks[14]);
     
-    const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
-    const hipCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+    const shoulder_width = Math.sqrt(Math.pow(l_shoulder.x - r_shoulder.x, 2) + Math.pow(l_shoulder.y - r_shoulder.y, 2));
+    const torso_height = Math.sqrt(Math.pow((l_shoulder.x + r_shoulder.x)/2 - (l_hip.x + r_hip.x)/2, 2) + Math.pow((l_shoulder.y + r_shoulder.y)/2 - (l_hip.y + r_hip.y)/2, 2));
     
-    const dx = rs.x - ls.x;
-    const dy = rs.y - ls.y;
-    const angle = Math.atan2(dy, dx);
+    const img_w = shoulder_width * 2.2 * scale;
+    const img_h = torso_height * 1.6 * scale;
     
-    const shoulderWidth = Math.sqrt(dx*dx + dy*dy);
-    const torsoHeight = Math.sqrt(Math.pow(hipCenter.x - shoulderCenter.x, 2) + Math.pow(hipCenter.y - shoulderCenter.y, 2));
+    const center_x = (l_shoulder.x + r_shoulder.x) / 2 + offsetX;
+    const center_y = (l_shoulder.y + r_shoulder.y) / 2 + (torso_height * 0.1) + offsetY;
     
-    const imgWidth = shoulderWidth * 2.2; 
-    const imgHeight = torsoHeight * 1.4; 
-    
-    ctx.save();
-    ctx.translate(shoulderCenter.x, shoulderCenter.y + torsoHeight * 0.1);
-    ctx.rotate(angle);
-    ctx.drawImage(img, -imgWidth / 2, -imgHeight * 0.15, imgWidth, imgHeight);
-    ctx.restore();
-  } else if (type === 'hat') {
-    const lEar = getPx(landmarks[7]);
-    const rEar = getPx(landmarks[8]);
-    const nose = getPx(landmarks[0]);
-    
-    const dx = rEar.x - lEar.x;
-    const dy = rEar.y - lEar.y;
-    const angle = Math.atan2(dy, dx);
-    const headWidth = Math.sqrt(dx*dx + dy*dy);
-    
-    const imgWidth = headWidth * 2.0;
-    const imgHeight = imgWidth * ((img as HTMLImageElement).height / (img as HTMLImageElement).width || 1);
+    const shoulder_angle = Math.atan2(r_shoulder.y - l_shoulder.y, r_shoulder.x - l_shoulder.x);
+    const hip_angle = Math.atan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x);
+    const angle = (shoulder_angle + hip_angle) / 2;
     
     ctx.save();
-    ctx.translate(nose.x, nose.y - headWidth * 0.9);
+    ctx.translate(center_x, center_y);
     ctx.rotate(angle);
-    ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    
+    // Add shadow for realism
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetX = 5;
+    ctx.shadowOffsetY = 10;
+    
+    ctx.drawImage(img, -img_w / 2, -img_h / 4, img_w, img_h);
+    
+    // Reset shadow for border and points
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(-img_w / 2, -img_h / 4, img_w, img_h);
+    ctx.setLineDash([]);
+    
+    const corners = [
+      {x: -img_w / 2, y: -img_h / 4},
+      {x: img_w / 2, y: -img_h / 4},
+      {x: -img_w / 2, y: img_h * 0.75},
+      {x: img_w / 2, y: img_h * 0.75},
+    ];
+    
+    for(let i=1; i<=5; i++) {
+        corners.push({x: -img_w/2 + (img_w/6)*i, y: -img_h/4});
+        corners.push({x: -img_w/2 + (img_w/6)*i, y: img_h * 0.75});
+    }
+    for(let i=1; i<=4; i++) {
+        corners.push({x: -img_w/2, y: -img_h/4 + (img_h/5)*i});
+        corners.push({x: img_w/2, y: -img_h/4 + (img_h/5)*i});
+    }
+    
+    ctx.fillStyle = '#f59e0b';
+    corners.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+    });
+    
     ctx.restore();
-  } else if (type === 'goggle') {
-    const lEye = getPx(landmarks[2]);
-    const rEye = getPx(landmarks[5]);
+
+    // Add extra tracking points on absolute positions
+    ctx.fillStyle = '#0ea5e9'; // sky-500
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
     
-    const dx = rEye.x - lEye.x;
-    const dy = rEye.y - lEye.y;
-    const angle = Math.atan2(dy, dx);
-    const eyeDist = Math.sqrt(dx*dx + dy*dy);
+    const extraPoints = [
+      { x: l_shoulder.x + (l_hip.x - l_shoulder.x)*0.33, y: l_shoulder.y + (l_hip.y - l_shoulder.y)*0.33 },
+      { x: l_shoulder.x + (l_hip.x - l_shoulder.x)*0.66, y: l_shoulder.y + (l_hip.y - l_shoulder.y)*0.66 },
+      { x: r_shoulder.x + (r_hip.x - r_shoulder.x)*0.33, y: r_shoulder.y + (r_hip.y - r_shoulder.y)*0.33 },
+      { x: r_shoulder.x + (r_hip.x - r_shoulder.x)*0.66, y: r_shoulder.y + (r_hip.y - r_shoulder.y)*0.66 },
+      { x: (l_shoulder.x + l_elbow.x)/2, y: (l_shoulder.y + l_elbow.y)/2 },
+      { x: (r_shoulder.x + r_elbow.x)/2, y: (r_shoulder.y + r_elbow.y)/2 },
+      l_elbow,
+      r_elbow
+    ];
     
-    const imgWidth = eyeDist * 2.8;
-    const imgHeight = imgWidth * ((img as HTMLImageElement).height / (img as HTMLImageElement).width || 0.5);
-    
-    const center = { x: (lEye.x + rEye.x) / 2, y: (lEye.y + rEye.y) / 2 };
-    
-    ctx.save();
-    ctx.translate(center.x, center.y);
-    ctx.rotate(angle);
-    ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
-    ctx.restore();
+    extraPoints.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+    });
   }
 };
 
@@ -113,12 +145,54 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   availableItems = [
     { id: 'red-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/2/24/T-shirt-red.svg', name: 'Red T-Shirt' },
     { id: 'blue-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/8/81/T-shirt-blue.svg', name: 'Blue T-Shirt' },
-    { id: 'green-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/0/07/T-shirt-green.svg', name: 'Green T-Shirt' },
-    { id: 'fedora', type: 'hat', url: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/Fedora.svg', name: 'Fedora Hat' },
-    { id: 'sunglasses', type: 'goggle', url: 'https://upload.wikimedia.org/wikipedia/commons/0/0c/Sunglasses_icon.svg', name: 'Sunglasses' }
+    { id: 'green-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/0/07/T-shirt-green.svg', name: 'Green T-Shirt' }
   ];
   selectedItems = signal<Record<string, string>>({});
   itemImages: Record<string, HTMLImageElement> = {};
+
+  clothOffsetX = signal(0);
+  clothOffsetY = signal(0);
+  clothScale = signal(1);
+
+  positionFeedback = signal<string>('Detecting position...');
+  positionStatus = signal<'good' | 'warning' | 'error'>('warning');
+  
+  cameraAngleFeedback = signal<string>('Detecting angle...');
+  cameraAngleStatus = signal<'good' | 'warning' | 'error'>('warning');
+  
+  distanceFromCamera = signal<number | null>(null);
+
+  adjustCloth(direction: 'up' | 'down' | 'left' | 'right' | 'in' | 'out') {
+    const step = 10;
+    const scaleStep = 0.05;
+    
+    switch (direction) {
+      case 'up':
+        this.clothOffsetY.update(v => v - step);
+        break;
+      case 'down':
+        this.clothOffsetY.update(v => v + step);
+        break;
+      case 'left':
+        this.clothOffsetX.update(v => v - step);
+        break;
+      case 'right':
+        this.clothOffsetX.update(v => v + step);
+        break;
+      case 'in':
+        this.clothScale.update(v => Math.max(0.5, v - scaleStep));
+        break;
+      case 'out':
+        this.clothScale.update(v => Math.min(2.0, v + scaleStep));
+        break;
+    }
+  }
+
+  private beforeUnloadListener = () => {
+    if (this.agoraClient) {
+      this.agoraClient.leave();
+    }
+  };
 
   async ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
@@ -127,6 +201,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         const img = new Image();
         img.src = item.url;
       });
+      window.addEventListener('beforeunload', this.beforeUnloadListener);
     }
   }
 
@@ -137,6 +212,9 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    if (isPlatformBrowser(this.platformId)) {
+      window.removeEventListener('beforeunload', this.beforeUnloadListener);
+    }
     this.leaveCall();
   }
 
@@ -153,8 +231,13 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         runningMode: "VIDEO",
         numPoses: 1
       });
-      this.statusText.set('Ready. Select a role to join the call.');
-      this.statusColor.set('text-emerald-400');
+      if (this.inCall()) {
+        this.statusText.set('Model loaded. Tracking active.');
+        this.statusColor.set('text-emerald-400');
+      } else {
+        this.statusText.set('Ready. Select a role to join the call.');
+        this.statusColor.set('text-emerald-400');
+      }
     } catch (error) {
       console.error(error);
       this.statusText.set('Error loading model.');
@@ -162,16 +245,38 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private storageListener = (e: StorageEvent) => {
+    if (e.key === 'selectedItems' && e.newValue) {
+      try {
+        const payload = JSON.parse(e.newValue);
+        this.ngZone.run(() => {
+          this.selectedItems.set(payload);
+          Object.entries(payload).forEach(([type, url]) => {
+            const img = new Image();
+            img.src = url as string;
+            this.itemImages[type] = img;
+          });
+        });
+      } catch (e) {
+        console.error('Failed to parse storage items', e);
+      }
+    }
+  };
+
   async joinCall(selectedRole: 'seller' | 'buyer') {
-    if (!this.poseLandmarker) {
-      alert("Please wait for the AI model to load.");
-      return;
+    if (this.agoraClient) {
+      await this.leaveCall();
     }
 
     this.role.set(selectedRole);
     this.inCall.set(true);
     this.statusText.set('Connecting to call...');
     this.statusColor.set('text-yellow-400');
+
+    if (!this.poseLandmarker) {
+      this.statusText.set('Loading AI model...');
+      this.statusColor.set('text-blue-400');
+    }
 
     try {
       const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
@@ -225,23 +330,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       });
 
       // Fallback for local testing across tabs
-      window.addEventListener('storage', (e) => {
-        if (e.key === 'selectedItems' && e.newValue) {
-          try {
-            const payload = JSON.parse(e.newValue);
-            this.ngZone.run(() => {
-              this.selectedItems.set(payload);
-              Object.entries(payload).forEach(([type, url]) => {
-                const img = new Image();
-                img.src = url as string;
-                this.itemImages[type] = img;
-              });
-            });
-          } catch (e) {
-            console.error('Failed to parse storage items', e);
-          }
-        }
-      });
+      window.addEventListener('storage', this.storageListener);
 
       await this.agoraClient.join(AGORA_APP_ID, CHANNEL_NAME, null, null);
 
@@ -289,12 +378,32 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       this.animationFrameId = null;
     }
 
-    this.localAudioTrack?.close();
-    this.localVideoTrack?.close();
-    
-    if (this.agoraClient) {
-      await this.agoraClient.leave();
-      this.agoraClient = null;
+    window.removeEventListener('storage', this.storageListener);
+
+    try {
+      if (this.agoraClient) {
+        if (this.localAudioTrack || this.localVideoTrack) {
+          const tracksToUnpublish = [];
+          if (this.localAudioTrack) tracksToUnpublish.push(this.localAudioTrack);
+          if (this.localVideoTrack) tracksToUnpublish.push(this.localVideoTrack);
+          
+          if (tracksToUnpublish.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await this.agoraClient.unpublish(tracksToUnpublish as any);
+          }
+        }
+        
+        await this.agoraClient.leave();
+        this.agoraClient.removeAllListeners();
+        this.agoraClient = null;
+      }
+    } catch (e) {
+      console.error('Error leaving Agora channel', e);
+    } finally {
+      this.localAudioTrack?.close();
+      this.localVideoTrack?.close();
+      this.localAudioTrack = null;
+      this.localVideoTrack = null;
     }
 
     this.statusText.set('Ready. Select a role to join the call.');
@@ -332,17 +441,35 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private predictWebcam = () => {
-    if (!this.webcamRunning() || !this.videoElement || !this.canvasElement || !this.poseLandmarker) return;
+    if (!this.webcamRunning() || !this.videoElement || !this.canvasElement) {
+      if (this.webcamRunning()) {
+        this.animationFrameId = requestAnimationFrame(this.predictWebcam);
+      }
+      return;
+    }
 
     const video = this.videoElement.nativeElement;
     const canvas = this.canvasElement.nativeElement;
     const canvasCtx = canvas.getContext('2d');
     
-    if (!canvasCtx) return;
+    if (!canvasCtx) {
+      this.animationFrameId = requestAnimationFrame(this.predictWebcam);
+      return;
+    }
 
     if (canvas.width !== video.videoWidth) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
+    }
+
+    if (!this.poseLandmarker) {
+      // Just draw the video frame if model is not ready
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      canvasCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvasCtx.restore();
+      this.animationFrameId = requestAnimationFrame(this.predictWebcam);
+      return;
     }
 
     const startTimeMs = performance.now();
@@ -398,7 +525,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
           Object.entries(this.selectedItems()).forEach(([type, url]) => {
             const img = this.itemImages[type];
             if (img && img.complete) {
-              drawItem(canvasCtx, img, type, landmarks, canvas.width, canvas.height);
+              drawItem(canvasCtx, img, type, landmarks, canvas.width, canvas.height, this.clothOffsetX(), this.clothOffsetY(), this.clothScale());
             }
           });
 
@@ -409,6 +536,46 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
           const mid_ankle = { x: (l_ankle.x + r_ankle.x)/2, y: (l_ankle.y + r_ankle.y)/2 };
           const body_length_px = calcDist(nose, mid_ankle);
           
+          // Position Feedback Logic
+          const isVisible = (lm: any) => lm && lm.visibility > 0.5;
+          let newFeedback = '';
+          let newStatus: 'good' | 'warning' | 'error' = 'good';
+          
+          if (!isVisible(landmarks[11]) || !isVisible(landmarks[12]) || !isVisible(landmarks[23]) || !isVisible(landmarks[24])) {
+            newFeedback = 'Step back to show your full torso';
+            newStatus = 'error';
+          } else {
+            const torso_px = calcDist(mid_shoulder, mid_hip);
+            const ratio = torso_px / canvas.height;
+            const mid_torso_x = (mid_shoulder.x + mid_hip.x) / 2;
+            
+            // Canvas is mirrored horizontally (scale-x-[-1]), so if mid_torso_x is small (left side of canvas),
+            // it means the user is physically on the right side of the camera's view, so they should move left.
+            if (mid_torso_x < canvas.width * 0.35) {
+              newFeedback = 'Shift Left';
+              newStatus = 'warning';
+            } else if (mid_torso_x > canvas.width * 0.65) {
+              newFeedback = 'Shift Right';
+              newStatus = 'warning';
+            } else if (ratio < 0.25) {
+              newFeedback = 'Move Closer';
+              newStatus = 'warning';
+            } else if (ratio > 0.60) {
+              newFeedback = 'Move Back';
+              newStatus = 'warning';
+            } else {
+              newFeedback = 'Perfect Position - STOP';
+              newStatus = 'good';
+            }
+          }
+          
+          if (this.positionFeedback() !== newFeedback) {
+            this.ngZone.run(() => {
+              this.positionFeedback.set(newFeedback);
+              this.positionStatus.set(newStatus);
+            });
+          }
+          
           const eye_dist_px = calcDist(l_eye, r_eye);
           const nose_to_l_eye = calcDist(nose, l_eye);
           const nose_to_r_eye = calcDist(nose, r_eye);
@@ -417,7 +584,14 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
           const is_facing_forward = face_ratio > 0.7 && face_ratio < 1.3;
           const KNOWN_IPD_CM = 6.3;
           
+          // Distance Estimation
+          // Approximate focal length for a standard webcam (e.g., 60-70 deg FOV)
+          const focal_length_px = canvas.width * 0.8; 
+          let distance_cm = null;
+          
           if (is_facing_forward && eye_dist_px > 5) {
+            distance_cm = (KNOWN_IPD_CM * focal_length_px) / eye_dist_px;
+            
             const current_pixels_per_cm = eye_dist_px / KNOWN_IPD_CM;
             if (this.smoothedPixelsPerCm === 0) {
               this.smoothedPixelsPerCm = current_pixels_per_cm;
@@ -425,6 +599,40 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
               this.smoothedPixelsPerCm = (this.smoothedPixelsPerCm * 0.95) + (current_pixels_per_cm * 0.05);
             }
           }
+          
+          // Camera Angle Estimation
+          let newAngleFeedback = 'Detecting angle...';
+          let newAngleStatus: 'good' | 'warning' | 'error' = 'warning';
+          
+          if (isVisible(landmarks[11]) && isVisible(landmarks[12]) && isVisible(landmarks[23]) && isVisible(landmarks[24])) {
+            const shoulder_width_px = calcDist(l_shoulder, r_shoulder);
+            const hip_width_px = calcDist(l_hip, r_hip);
+            
+            if (hip_width_px > 0) {
+              const angle_ratio = shoulder_width_px / hip_width_px;
+              
+              if (angle_ratio > 1.6) {
+                newAngleFeedback = 'Camera too high. Tilt down ⬇️';
+                newAngleStatus = 'error';
+              } else if (angle_ratio < 1.1) {
+                newAngleFeedback = 'Camera too low. Tilt up ⬆️';
+                newAngleStatus = 'error';
+              } else {
+                newAngleFeedback = 'Camera angle is good ✅';
+                newAngleStatus = 'good';
+              }
+            }
+          }
+
+          this.ngZone.run(() => {
+            if (distance_cm) {
+              this.distanceFromCamera.set(distance_cm);
+            }
+            if (this.cameraAngleFeedback() !== newAngleFeedback) {
+              this.cameraAngleFeedback.set(newAngleFeedback);
+              this.cameraAngleStatus.set(newAngleStatus);
+            }
+          });
 
           const pixels_per_cm = this.smoothedPixelsPerCm > 0 ? this.smoothedPixelsPerCm : (body_length_px / (170 * 0.88));
           const actual_height_cm = (body_length_px / pixels_per_cm) / 0.88;
