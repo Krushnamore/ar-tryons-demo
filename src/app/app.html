@@ -89,16 +89,16 @@
         <!-- Role Specific Controls -->
         @if (role() === 'seller') {
           <div class="mt-6 bg-[#141414] border border-white/10 rounded-2xl p-6">
-            <h3 class="text-lg font-medium text-white mb-4">Select a Shirt to Send</h3>
+            <h3 class="text-lg font-medium text-white mb-4">Select Items to Send</h3>
             <div class="flex gap-4 overflow-x-auto pb-2">
-              @for (shirt of availableShirts; track shirt.id) {
+              @for (item of availableItems; track item.id) {
                 <button 
-                  (click)="selectShirt(shirt.url)"
-                  [class.border-emerald-500]="selectedShirtUrl() === shirt.url"
-                  [class.border-white_10]="selectedShirtUrl() !== shirt.url"
+                  (click)="selectItem(item)"
+                  [class.border-emerald-500]="selectedItems()[item.type] === item.url"
+                  [class.border-white_10]="selectedItems()[item.type] !== item.url"
                   class="flex-shrink-0 w-32 h-32 rounded-xl border-2 bg-white/5 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-2 p-2">
-                  <img [src]="shirt.url" class="w-16 h-16 object-contain" [alt]="shirt.name">
-                  <span class="text-xs text-gray-300 text-center">{{ shirt.name }}</span>
+                  <img [src]="item.url" class="w-16 h-16 object-contain" [alt]="item.name">
+                  <span class="text-xs text-gray-300 text-center">{{ item.name }}</span>
                 </button>
               }
             </div>

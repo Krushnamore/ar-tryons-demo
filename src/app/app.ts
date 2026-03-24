@@ -7,99 +7,71 @@ import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemote
 const AGORA_APP_ID = 'ccd55ca11eb044efa9c85caed54542e5';
 const CHANNEL_NAME = 'virtual-tryon-demo';
 
-const getAffineTransform = (src: {x: number, y: number}[], dst: {x: number, y: number}[]) => {
-  const x0 = src[0].x, y0 = src[0].y;
-  const x1 = src[1].x, y1 = src[1].y;
-  const x2 = src[2].x, y2 = src[2].y;
-
-  const u0 = dst[0].x, v0 = dst[0].y;
-  const u1 = dst[1].x, v1 = dst[1].y;
-  const u2 = dst[2].x, v2 = dst[2].y;
-
-  const denominator = (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1));
-  if (denominator === 0) return null;
-
-  const a = (u0 * (y1 - y2) + u1 * (y2 - y0) + u2 * (y0 - y1)) / denominator;
-  const b = (v0 * (y1 - y2) + v1 * (y2 - y0) + v2 * (y0 - y1)) / denominator;
-  const c = (u0 * (x2 - x1) + u1 * (x0 - x2) + u2 * (x1 - x0)) / denominator;
-  const d = (v0 * (x2 - x1) + v1 * (x0 - x2) + v2 * (x1 - x0)) / denominator;
-  const e = (u0 * (x1 * y2 - x2 * y1) + u1 * (x2 * y0 - x0 * y2) + u2 * (x0 * y1 - x1 * y0)) / denominator;
-  const f = (v0 * (x1 * y2 - x2 * y1) + v1 * (x2 * y0 - x0 * y2) + v2 * (x0 * y1 - x1 * y0)) / denominator;
-
-  return [a, b, c, d, e, f];
-};
-
-const drawTriangle = (ctx: CanvasRenderingContext2D, img: HTMLVideoElement | HTMLImageElement, src: {x: number, y: number}[], dst: {x: number, y: number}[]) => {
-  const matrix = getAffineTransform(src, dst);
-  if (!matrix) return;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(dst[0].x, dst[0].y);
-  ctx.lineTo(dst[1].x, dst[1].y);
-  ctx.lineTo(dst[2].x, dst[2].y);
-  ctx.closePath();
-  ctx.clip();
-
-  ctx.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
-  const w = (img as HTMLVideoElement).videoWidth || img.width;
-  const h = (img as HTMLVideoElement).videoHeight || img.height;
-  ctx.drawImage(img, 0, 0, w, h);
-  ctx.restore();
-};
-
-const getShirtMesh = (landmarks: any, w: number, h: number) => {
+const drawItem = (ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLVideoElement, type: string, landmarks: any, w: number, h: number) => {
   const getPx = (lm: any) => ({ x: lm.x * w, y: lm.y * h });
-  const le = getPx(landmarks[13]);
-  const ls = getPx(landmarks[11]);
-  const rs = getPx(landmarks[12]);
-  const re = getPx(landmarks[14]);
-  const lh = getPx(landmarks[23]);
-  const rh = getPx(landmarks[24]);
-
-  const centerX = (ls.x + rs.x + lh.x + rh.x) / 4;
-  const centerY = (ls.y + rs.y + lh.y + rh.y) / 4;
-
-  const expand = (p: {x: number, y: number}, scaleX: number, scaleY: number) => ({
-    x: centerX + (p.x - centerX) * scaleX,
-    y: centerY + (p.y - centerY) * scaleY
-  });
-
-  const els = expand(ls, 1.4, 1.2);
-  const ers = expand(rs, 1.4, 1.2);
-  const elh = expand(lh, 1.3, 1.1);
-  const erh = expand(rh, 1.3, 1.1);
-  const ele = expand(le, 1.3, 1.3);
-  const ere = expand(re, 1.3, 1.3);
-
-  const ela = { x: els.x + (elh.x - els.x)*0.2, y: els.y + (elh.y - els.y)*0.2 };
-  const era = { x: ers.x + (erh.x - ers.x)*0.2, y: ers.y + (erh.y - ers.y)*0.2 };
-
-  return [
-    [els, ers, elh],
-    [ers, erh, elh],
-    [ele, els, ela],
-    [ere, ers, era]
-  ];
-};
-
-const getStaticShirtMesh = (w: number, h: number) => {
-  const els = { x: w * 0.25, y: h * 0.15 };
-  const ers = { x: w * 0.75, y: h * 0.15 };
-  const elh = { x: w * 0.3, y: h * 0.9 };
-  const erh = { x: w * 0.7, y: h * 0.9 };
-  const ele = { x: w * 0.05, y: h * 0.4 };
-  const ere = { x: w * 0.95, y: h * 0.4 };
   
-  const ela = { x: els.x + (elh.x - els.x)*0.2, y: els.y + (elh.y - els.y)*0.2 };
-  const era = { x: ers.x + (erh.x - ers.x)*0.2, y: ers.y + (erh.y - ers.y)*0.2 };
-
-  return [
-    [els, ers, elh],
-    [ers, erh, elh],
-    [ele, els, ela],
-    [ere, ers, era]
-  ];
+  if (type === 'shirt') {
+    const ls = getPx(landmarks[11]);
+    const rs = getPx(landmarks[12]);
+    const lh = getPx(landmarks[23]);
+    const rh = getPx(landmarks[24]);
+    
+    const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
+    const hipCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+    
+    const dx = rs.x - ls.x;
+    const dy = rs.y - ls.y;
+    const angle = Math.atan2(dy, dx);
+    
+    const shoulderWidth = Math.sqrt(dx*dx + dy*dy);
+    const torsoHeight = Math.sqrt(Math.pow(hipCenter.x - shoulderCenter.x, 2) + Math.pow(hipCenter.y - shoulderCenter.y, 2));
+    
+    const imgWidth = shoulderWidth * 2.2; 
+    const imgHeight = torsoHeight * 1.4; 
+    
+    ctx.save();
+    ctx.translate(shoulderCenter.x, shoulderCenter.y + torsoHeight * 0.1);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -imgWidth / 2, -imgHeight * 0.15, imgWidth, imgHeight);
+    ctx.restore();
+  } else if (type === 'hat') {
+    const lEar = getPx(landmarks[7]);
+    const rEar = getPx(landmarks[8]);
+    const nose = getPx(landmarks[0]);
+    
+    const dx = rEar.x - lEar.x;
+    const dy = rEar.y - lEar.y;
+    const angle = Math.atan2(dy, dx);
+    const headWidth = Math.sqrt(dx*dx + dy*dy);
+    
+    const imgWidth = headWidth * 2.0;
+    const imgHeight = imgWidth * ((img as HTMLImageElement).height / (img as HTMLImageElement).width || 1);
+    
+    ctx.save();
+    ctx.translate(nose.x, nose.y - headWidth * 0.9);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
+  } else if (type === 'goggle') {
+    const lEye = getPx(landmarks[2]);
+    const rEye = getPx(landmarks[5]);
+    
+    const dx = rEye.x - lEye.x;
+    const dy = rEye.y - lEye.y;
+    const angle = Math.atan2(dy, dx);
+    const eyeDist = Math.sqrt(dx*dx + dy*dy);
+    
+    const imgWidth = eyeDist * 2.8;
+    const imgHeight = imgWidth * ((img as HTMLImageElement).height / (img as HTMLImageElement).width || 0.5);
+    
+    const center = { x: (lEye.x + rEye.x) / 2, y: (lEye.y + rEye.y) / 2 };
+    
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
+  }
 };
 
 @Component({
@@ -138,20 +110,22 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   
   smoothedPixelsPerCm = 0;
 
-  availableShirts = [
-    { id: 'red', url: 'https://upload.wikimedia.org/wikipedia/commons/2/24/T-shirt-red.svg', name: 'Red T-Shirt' },
-    { id: 'blue', url: 'https://upload.wikimedia.org/wikipedia/commons/8/81/T-shirt-blue.svg', name: 'Blue T-Shirt' },
-    { id: 'green', url: 'https://upload.wikimedia.org/wikipedia/commons/0/07/T-shirt-green.svg', name: 'Green T-Shirt' }
+  availableItems = [
+    { id: 'red-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/2/24/T-shirt-red.svg', name: 'Red T-Shirt' },
+    { id: 'blue-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/8/81/T-shirt-blue.svg', name: 'Blue T-Shirt' },
+    { id: 'green-shirt', type: 'shirt', url: 'https://upload.wikimedia.org/wikipedia/commons/0/07/T-shirt-green.svg', name: 'Green T-Shirt' },
+    { id: 'fedora', type: 'hat', url: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/Fedora.svg', name: 'Fedora Hat' },
+    { id: 'sunglasses', type: 'goggle', url: 'https://upload.wikimedia.org/wikipedia/commons/0/0c/Sunglasses_icon.svg', name: 'Sunglasses' }
   ];
-  selectedShirtUrl = signal<string | null>(null);
-  shirtImageElement: HTMLImageElement | null = null;
+  selectedItems = signal<Record<string, string>>({});
+  itemImages: Record<string, HTMLImageElement> = {};
 
   async ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
-      // Preload shirt images
-      this.availableShirts.forEach(shirt => {
+      // Preload images
+      this.availableItems.forEach(item => {
         const img = new Image();
-        img.src = shirt.url;
+        img.src = item.url;
       });
     }
   }
@@ -233,24 +207,39 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
       this.agoraClient.on('stream-message', (uid, data) => {
         const msg = new TextDecoder().decode(data);
-        if (msg.startsWith('shirt:')) {
-          const url = msg.split('shirt:')[1];
-          this.ngZone.run(() => {
-            this.selectedShirtUrl.set(url);
-            this.shirtImageElement = new Image();
-            this.shirtImageElement.src = url;
-          });
+        if (msg.startsWith('items:')) {
+          try {
+            const payload = JSON.parse(msg.split('items:')[1]);
+            this.ngZone.run(() => {
+              this.selectedItems.set(payload);
+              Object.entries(payload).forEach(([type, url]) => {
+                const img = new Image();
+                img.src = url as string;
+                this.itemImages[type] = img;
+              });
+            });
+          } catch (e) {
+            console.error('Failed to parse items message', e);
+          }
         }
       });
 
       // Fallback for local testing across tabs
       window.addEventListener('storage', (e) => {
-        if (e.key === 'selectedShirt' && e.newValue) {
-          this.ngZone.run(() => {
-            this.selectedShirtUrl.set(e.newValue);
-            this.shirtImageElement = new Image();
-            this.shirtImageElement.src = e.newValue!;
-          });
+        if (e.key === 'selectedItems' && e.newValue) {
+          try {
+            const payload = JSON.parse(e.newValue);
+            this.ngZone.run(() => {
+              this.selectedItems.set(payload);
+              Object.entries(payload).forEach(([type, url]) => {
+                const img = new Image();
+                img.src = url as string;
+                this.itemImages[type] = img;
+              });
+            });
+          } catch (e) {
+            console.error('Failed to parse storage items', e);
+          }
         }
       });
 
@@ -292,8 +281,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     this.inCall.set(false);
     this.role.set(null);
     this.measurements.set(null);
-    this.selectedShirtUrl.set(null);
-    this.shirtImageElement = null;
+    this.selectedItems.set({});
+    this.itemImages = {};
 
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -312,23 +301,34 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     this.statusColor.set('text-emerald-400');
   }
 
-  selectShirt(url: string) {
-    this.selectedShirtUrl.set(url);
-    if (this.agoraClient) {
-      const data = new TextEncoder().encode(`shirt:${url}`);
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const clientAny = this.agoraClient as any;
-        if (clientAny.createDataStream && clientAny.sendStreamMessage) {
-          const streamId = clientAny.createDataStream({syncWithAudio: false, ordered: true});
-          clientAny.sendStreamMessage(streamId, data);
-        }
-      } catch (e) {
-        console.error("Failed to send stream message", e);
+  selectItem(item: {type: string, url: string}) {
+    this.selectedItems.update(items => {
+      const newItems = { ...items };
+      if (newItems[item.type] === item.url) {
+        delete newItems[item.type];
+      } else {
+        newItems[item.type] = item.url;
       }
-    }
-    // Fallback for local testing across tabs
-    localStorage.setItem('selectedShirt', url);
+      
+      const payload = JSON.stringify(newItems);
+      if (this.agoraClient) {
+        const data = new TextEncoder().encode(`items:${payload}`);
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const clientAny = this.agoraClient as any;
+          if (clientAny.createDataStream && clientAny.sendStreamMessage) {
+            const streamId = clientAny.createDataStream({syncWithAudio: false, ordered: true});
+            clientAny.sendStreamMessage(streamId, data);
+          }
+        } catch (e) {
+          console.error("Failed to send stream message", e);
+        }
+      }
+      // Fallback for local testing across tabs
+      localStorage.setItem('selectedItems', payload);
+      
+      return newItems;
+    });
   }
 
   private predictWebcam = () => {
@@ -393,62 +393,14 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
           });
         }
 
-        if (this.role() === 'seller') {
-          // Draw points on the shirt for the seller so they can see what is being tracked
-          const sourceMesh = getShirtMesh(landmarks, canvas.width, canvas.height);
-          canvasCtx.fillStyle = '#3b82f6'; // blue-500
-          for (const tri of sourceMesh) {
-              for (const pt of tri) {
-                  canvasCtx.beginPath();
-                  canvasCtx.arc(pt.x, pt.y, 5, 0, 2 * Math.PI);
-                  canvasCtx.fill();
-              }
-          }
-        }
-
         if (this.role() === 'buyer') {
-          // Virtual Try-On: Wrap Shirt using Mesh Deformation
-          let sourceMesh = null;
-          let sourceImage: HTMLImageElement | HTMLVideoElement | null = null;
-
-          const remoteVideo = this.remoteVideoContainer?.nativeElement.querySelector('video');
-          let remoteLandmarks = null;
-          
-          if (remoteVideo && remoteVideo.videoWidth > 0 && this.role() === 'buyer') {
-              const remoteResult = this.poseLandmarker.detectForVideo(remoteVideo, performance.now());
-              if (remoteResult.landmarks && remoteResult.landmarks.length > 0) {
-                  remoteLandmarks = remoteResult.landmarks[0];
-              }
-          }
-
-          if (this.shirtImageElement && this.shirtImageElement.complete) {
-              // Use static shirt
-              sourceImage = this.shirtImageElement;
-              sourceMesh = getStaticShirtMesh(sourceImage.width, sourceImage.height);
-          } else if (remoteLandmarks && remoteVideo) {
-              // Use seller's video feed as shirt texture!
-              sourceImage = remoteVideo;
-              sourceMesh = getShirtMesh(remoteLandmarks, remoteVideo.videoWidth, remoteVideo.videoHeight);
-          }
-
-          if (sourceImage && sourceMesh) {
-              const destMesh = getShirtMesh(landmarks, canvas.width, canvas.height);
-              
-              // Draw the triangles
-              for (let i = 0; i < 4; i++) {
-                  drawTriangle(canvasCtx, sourceImage, sourceMesh[i], destMesh[i]);
-              }
-              
-              // Draw points on the shirt like the buyer side
-              canvasCtx.fillStyle = '#3b82f6'; // blue-500
-              for (const tri of destMesh) {
-                  for (const pt of tri) {
-                      canvasCtx.beginPath();
-                      canvasCtx.arc(pt.x, pt.y, 5, 0, 2 * Math.PI);
-                      canvasCtx.fill();
-                  }
-              }
-          }
+          // Virtual Try-On
+          Object.entries(this.selectedItems()).forEach(([type, url]) => {
+            const img = this.itemImages[type];
+            if (img && img.complete) {
+              drawItem(canvasCtx, img, type, landmarks, canvas.width, canvas.height);
+            }
+          });
 
           // Calculate Measurements
           const current_shoulder_px = calcDist(l_shoulder, r_shoulder);
